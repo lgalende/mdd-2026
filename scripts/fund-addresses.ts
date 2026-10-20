@@ -2,8 +2,7 @@ import { network } from "hardhat";
 
 // npx hardhat run scripts/fund-addresses.ts --network sepolia
 const RECIPIENTS = [
-  "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
-  "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+  "0xd73d34733c56Ddfeb685E75ba1F4a8a643012803",
 ];
 
 const AMOUNT = "0.01";
