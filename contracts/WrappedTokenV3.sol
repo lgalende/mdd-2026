@@ -6,6 +6,8 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 /**
  * @dev This contract is used for educational purposes only. It is not intended for production use and may contain vulnerabilities.
  * Do not use this contract in production environments.
+ *
+ * Same as `WrappedTokenV2`, but the owner is checked with `msg.sender` instead of `tx.origin` in `emergencyWithdraw`.
  */
 contract WrappedTokenV3 is ERC20 {
   address public owner;

@@ -23,16 +23,16 @@ describe("WrappedTokenV1", function () {
     const amount = ethers.parseEther("1");
     
     it("should receive ETH and mint tokens", async function () {
-      const tokenBalanceBefore = await ethers.provider.getBalance(token.getAddress());
-      const aliceBalanceBefore = await token.balanceOf(alice.address);
+      const contractEthBalanceBefore = await ethers.provider.getBalance(token.getAddress());
+      const aliceTokenBalanceBefore = await token.balanceOf(alice.address);
 
       await token.connect(alice).deposit(amount, { value: amount });
 
-      const tokenBalanceAfter = await ethers.provider.getBalance(token.getAddress());
-      expect(tokenBalanceAfter).to.equal(tokenBalanceBefore + amount);
+      const contractEthBalanceAfter = await ethers.provider.getBalance(token.getAddress());
+      expect(contractEthBalanceAfter).to.equal(contractEthBalanceBefore + amount);
 
-      const aliceBalanceAfter = await token.balanceOf(alice.address);
-      expect(aliceBalanceAfter).to.equal(aliceBalanceBefore + amount);
+      const aliceTokenBalanceAfter = await token.balanceOf(alice.address);
+      expect(aliceTokenBalanceAfter).to.equal(aliceTokenBalanceBefore + amount);
     });
 
     it("should revert if the sent ETH amount does not match the specified amount", async function () {
@@ -41,29 +41,28 @@ describe("WrappedTokenV1", function () {
   });
 
   describe("withdraw", function () {
-    const amount = ethers.parseEther("0.1");
+    const amount = ethers.parseEther("0.3");
 
     beforeEach(async function () {
-      await token.connect(alice).deposit(amount * 3n, { value: amount * 3n });
+      await token.connect(alice).deposit(amount, { value: amount });
     });
-    
+
     it("should burn tokens and transfer ETH", async function () {
-      const tokenBalanceBefore = await ethers.provider.getBalance(token.getAddress());
-      const aliceBalanceBefore = await token.balanceOf(alice.address);
+      const contractEthBalanceBefore = await ethers.provider.getBalance(token.getAddress());
       const aliceEthBalanceBefore = await ethers.provider.getBalance(alice.address);
 
       const tx = await token.connect(alice).withdraw();
       const receipt = await tx.wait();
       const gasUsed = receipt!.fee;
 
-      const tokenBalanceAfter = await ethers.provider.getBalance(token.getAddress());
-      expect(tokenBalanceAfter).to.equal(tokenBalanceBefore - aliceBalanceBefore);
+      const contractEthBalanceAfter = await ethers.provider.getBalance(token.getAddress());
+      expect(contractEthBalanceAfter).to.equal(contractEthBalanceBefore - amount);
 
-      const aliceBalanceAfter = await token.balanceOf(alice.address);
-      expect(aliceBalanceAfter).to.equal(0n);
+      const aliceTokenBalanceAfter = await token.balanceOf(alice.address);
+      expect(aliceTokenBalanceAfter).to.equal(0n);
 
       const aliceEthBalanceAfter = await ethers.provider.getBalance(alice.address);
-      expect(aliceEthBalanceAfter).to.equal(aliceEthBalanceBefore + aliceBalanceBefore - gasUsed);
+      expect(aliceEthBalanceAfter).to.equal(aliceEthBalanceBefore + amount - gasUsed);
     });
 
     it("should revert if the user has no balance", async function () {
@@ -80,32 +79,32 @@ describe("WrappedTokenV1", function () {
 
     it("should transfer all ETH to the specified recipient", async function () {
       const recipient = bob.address;
-      const tokenBalanceBefore = await ethers.provider.getBalance(token.getAddress());
-      const recipientBalanceBefore = await ethers.provider.getBalance(recipient);
+      const contractEthBalanceBefore = await ethers.provider.getBalance(token.getAddress());
+      const recipientEthBalanceBefore = await ethers.provider.getBalance(recipient);
 
       await token.connect(alice).emergencyWithdraw(recipient);
 
-      const tokenBalanceAfter = await ethers.provider.getBalance(token.getAddress());
-      expect(tokenBalanceAfter).to.equal(0n);
+      const contractEthBalanceAfter = await ethers.provider.getBalance(token.getAddress());
+      expect(contractEthBalanceAfter).to.equal(0n);
 
-      const recipientBalanceAfter = await ethers.provider.getBalance(recipient);
-      expect(recipientBalanceAfter).to.equal(recipientBalanceBefore + tokenBalanceBefore);
+      const recipientEthBalanceAfter = await ethers.provider.getBalance(recipient);
+      expect(recipientEthBalanceAfter).to.equal(recipientEthBalanceBefore + contractEthBalanceBefore);
     });
 
     it("[vulnerability]", async function () {
       // Missing access control: anyone can drain the contract
-      const tokenBalanceBefore = await ethers.provider.getBalance(token.getAddress());
+      const contractEthBalanceBefore = await ethers.provider.getBalance(token.getAddress());
       const bobEthBalanceBefore = await ethers.provider.getBalance(bob.address);
 
       const tx = await token.connect(bob).emergencyWithdraw(bob.address);
       const receipt = await tx.wait();
       const gasUsed = receipt!.fee;
 
-      const tokenBalanceAfter = await ethers.provider.getBalance(token.getAddress());
-      expect(tokenBalanceAfter).to.equal(0n);
+      const contractEthBalanceAfter = await ethers.provider.getBalance(token.getAddress());
+      expect(contractEthBalanceAfter).to.equal(0n);
 
       const bobEthBalanceAfter = await ethers.provider.getBalance(bob.address);
-      expect(bobEthBalanceAfter).to.equal(bobEthBalanceBefore + tokenBalanceBefore - gasUsed);
+      expect(bobEthBalanceAfter).to.equal(bobEthBalanceBefore + contractEthBalanceBefore - gasUsed);
     });
   });
 });

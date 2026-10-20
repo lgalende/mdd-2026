@@ -20,22 +20,21 @@ describe("WrappedTokenV4", function () {
 
   describe("withdraw", function () {
     it("should burn tokens and transfer ETH", async function () {
-      const tokenBalanceBefore = await ethers.provider.getBalance(token.getAddress());
-      const aliceBalanceBefore = await token.balanceOf(alice.address);
+      const contractEthBalanceBefore = await ethers.provider.getBalance(token.getAddress());
       const aliceEthBalanceBefore = await ethers.provider.getBalance(alice.address);
 
       const tx = await token.connect(alice).withdraw();
       const receipt = await tx.wait();
       const gasUsed = receipt!.fee;
 
-      const tokenBalanceAfter = await ethers.provider.getBalance(token.getAddress());
-      expect(tokenBalanceAfter).to.equal(tokenBalanceBefore - aliceBalanceBefore);
+      const contractEthBalanceAfter = await ethers.provider.getBalance(token.getAddress());
+      expect(contractEthBalanceAfter).to.equal(contractEthBalanceBefore - amount);
 
-      const aliceBalanceAfter = await token.balanceOf(alice.address);
-      expect(aliceBalanceAfter).to.equal(0n);
+      const aliceTokenBalanceAfter = await token.balanceOf(alice.address);
+      expect(aliceTokenBalanceAfter).to.equal(0n);
 
       const aliceEthBalanceAfter = await ethers.provider.getBalance(alice.address);
-      expect(aliceEthBalanceAfter).to.equal(aliceEthBalanceBefore + aliceBalanceBefore - gasUsed);
+      expect(aliceEthBalanceAfter).to.equal(aliceEthBalanceBefore + amount - gasUsed);
     });
 
     it("should revert if the caller re-enters withdraw", async function () {

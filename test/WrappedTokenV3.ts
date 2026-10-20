@@ -19,12 +19,41 @@ describe("WrappedTokenV3", function () {
   });
 
   describe("withdraw", function () {
+    it("should transfer ETH to an EOA", async function () {
+      const aliceEthBalanceBefore = await ethers.provider.getBalance(alice.address);
+
+      // an EOA has no code, so receiving ETH only increases its balance
+      const tx = await token.connect(alice).withdraw();
+      const receipt = await tx.wait();
+      const gasUsed = receipt!.fee;
+
+      const aliceEthBalanceAfter = await ethers.provider.getBalance(alice.address);
+      expect(aliceEthBalanceAfter).to.equal(aliceEthBalanceBefore + amount - gasUsed);
+      expect(await token.balanceOf(alice.address)).to.equal(0n);
+    });
+
+    it("should transfer ETH to a smart contract and execute its receive function", async function () {
+      const wallet = await ethers.deployContract("SmartWallet", [await token.getAddress()], bob);
+      await wallet.connect(bob).deposit({ value: amount });
+
+      const walletEthBalanceBefore = await ethers.provider.getBalance(wallet.getAddress());
+
+      // a smart contract has code, so receiving ETH executes its receive function
+      await expect(wallet.connect(bob).withdraw())
+        .to.emit(wallet, "Received")
+        .withArgs(await token.getAddress(), amount);
+
+      const walletEthBalanceAfter = await ethers.provider.getBalance(wallet.getAddress());
+      expect(walletEthBalanceAfter).to.equal(walletEthBalanceBefore + amount);
+      expect(await token.balanceOf(wallet.getAddress())).to.equal(0n);
+    });
+
     it("[vulnerability]", async function () {
       // the attacker re-enters withdraw and drains the deposits of other users
       const attacker = await ethers.deployContract("ReentrancyAttacker", [await token.getAddress()], bob);
       const attackAmount = ethers.parseEther("1");
 
-      const tokenBalanceBefore = await ethers.provider.getBalance(token.getAddress());
+      const contractEthBalanceBefore = await ethers.provider.getBalance(token.getAddress());
       const bobEthBalanceBefore = await ethers.provider.getBalance(bob.address);
 
       // Bob sends 1 ETH and gets back 6 ETH: Bob's deposit plus Alice's
@@ -32,11 +61,11 @@ describe("WrappedTokenV3", function () {
       const receipt = await tx.wait();
       const gasUsed = receipt!.fee;
 
-      const tokenBalanceAfter = await ethers.provider.getBalance(token.getAddress());
-      expect(tokenBalanceAfter).to.equal(0n);
+      const contractEthBalanceAfter = await ethers.provider.getBalance(token.getAddress());
+      expect(contractEthBalanceAfter).to.equal(0n);
 
       const bobEthBalanceAfter = await ethers.provider.getBalance(bob.address);
-      expect(bobEthBalanceAfter).to.equal(bobEthBalanceBefore + tokenBalanceBefore - gasUsed);
+      expect(bobEthBalanceAfter).to.equal(bobEthBalanceBefore + contractEthBalanceBefore - gasUsed);
 
       // Alice's balance is still recorded, but there is no ETH left to pay it
       expect(await token.balanceOf(alice.address)).to.equal(amount);

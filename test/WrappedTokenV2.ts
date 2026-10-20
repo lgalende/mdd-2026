@@ -31,18 +31,18 @@ describe("WrappedTokenV2", function () {
       // the owner is tricked into calling a malicious contract that drains the token
       const attacker = await ethers.deployContract("TxOriginAttacker", [await token.getAddress()], bob);
 
-      const tokenBalanceBefore = await ethers.provider.getBalance(token.getAddress());
+      const contractEthBalanceBefore = await ethers.provider.getBalance(token.getAddress());
       const bobEthBalanceBefore = await ethers.provider.getBalance(bob.address);
 
       // tx.origin is the owner, so the check passes even though msg.sender is the attacker contract
       await attacker.connect(owner).claimAirdrop();
 
-      const tokenBalanceAfter = await ethers.provider.getBalance(token.getAddress());
-      expect(tokenBalanceAfter).to.equal(0n);
+      const contractEthBalanceAfter = await ethers.provider.getBalance(token.getAddress());
+      expect(contractEthBalanceAfter).to.equal(0n);
 
       // the owner pays the gas, so Bob receives the whole balance
       const bobEthBalanceAfter = await ethers.provider.getBalance(bob.address);
-      expect(bobEthBalanceAfter).to.equal(bobEthBalanceBefore + tokenBalanceBefore);
+      expect(bobEthBalanceAfter).to.equal(bobEthBalanceBefore + contractEthBalanceBefore);
     });
   });
 });
