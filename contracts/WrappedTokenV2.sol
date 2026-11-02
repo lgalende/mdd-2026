@@ -47,7 +47,7 @@ contract WrappedTokenV2 is ERC20 {
 
   /**
    * Withdraws all ETH from the contract. Only the owner can call it.
-   * It is inteded to be used in case there is a bug in the contract and the contract needs to be drained.
+   * It is intended to be used in case there is a bug in the contract and the contract needs to be drained.
    * `tx.origin` is the externally owned account (EOA) that signed the transaction,
    * no matter how many contracts the call went through before reaching this one
    * `recipient` is the address that will receive the ETH

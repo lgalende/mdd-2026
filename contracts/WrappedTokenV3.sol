@@ -47,7 +47,7 @@ contract WrappedTokenV3 is ERC20 {
 
   /**
    * Withdraws all ETH from the contract. Only the owner can call it.
-   * It is inteded to be used in case there is a bug in the contract and the contract needs to be drained.
+   * It is intended to be used in case there is a bug in the contract and the contract needs to be drained.
    * `msg.sender` is the immediate caller: if the owner calls a malicious contract, the malicious contract is `msg.sender` here
    * `recipient` is the address that will receive the ETH
    * `address(this).balance` is the current ETH balance of the contract

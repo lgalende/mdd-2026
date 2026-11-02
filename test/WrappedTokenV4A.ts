@@ -1,20 +1,20 @@
 import type { HardhatEthersSigner } from "@nomicfoundation/hardhat-ethers/types";
 import { expect } from "chai";
 import { network } from "hardhat";
-import type { WrappedTokenV4 } from "../types/ethers-contracts/index.js";
+import type { WrappedTokenV4A } from "../types/ethers-contracts/index.js";
 
 const { ethers } = await network.create();
 
 const NAME = "MDD Wrapped Token";
 const SYMBOL = "MDD-WETH";
 
-describe("WrappedTokenV4", function () {
+describe("WrappedTokenV4A", function () {
   const amount = ethers.parseEther("5");
-  let token: WrappedTokenV4, owner: HardhatEthersSigner, alice: HardhatEthersSigner, bob: HardhatEthersSigner;
+  let token: WrappedTokenV4A, owner: HardhatEthersSigner, alice: HardhatEthersSigner, bob: HardhatEthersSigner;
 
   beforeEach(async function () {
     [owner, alice, bob] = await ethers.getSigners();
-    token = await ethers.deployContract("WrappedTokenV4", [NAME, SYMBOL, owner.address]);
+    token = await ethers.deployContract("WrappedTokenV4A", [NAME, SYMBOL, owner.address]);
     await token.connect(alice).deposit(amount, { value: amount });
   });
 

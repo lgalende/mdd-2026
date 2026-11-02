@@ -39,7 +39,7 @@ contract WrappedTokenV1 is ERC20 {
 
   /**
    * Withdraws all ETH from the contract. 
-   * It is inteded to be used in case there is a bug in the contract and the contract needs to be drained.
+   * It is intended to be used in case there is a bug in the contract and the contract needs to be drained.
    * `recipient` is the address that will receive the ETH
    * `address(this).balance` is the current ETH balance of the contract
    * `call` is used to transfer ETH from the contract balance
