@@ -40,7 +40,7 @@ describe("WrappedTokenV5", function () {
     it("should revert if the caller re-enters withdraw", async function () {
       const attacker = await ethers.deployContract("ReentrancyAttacker", [await token.getAddress()], bob);
 
-      // The reentrant withdraw reverts with ReentrancyGuardReentrantCall, so the outer ETH transfer fails
+      // The reentrant withdraw reverts with "Reentrant call", so the outer ETH transfer fails
       await expect(attacker.connect(bob).attack({ value: ethers.parseEther("1") })).to.be.revertedWith(
         "ETH transfer failed",
       );
@@ -62,17 +62,13 @@ describe("WrappedTokenV5", function () {
     });
 
     it("should revert if the caller is not the owner", async function () {
-      await expect(token.connect(bob).emergencyWithdraw(bob.address))
-        .to.be.revertedWithCustomError(token, "OwnableUnauthorizedAccount")
-        .withArgs(bob.address);
+      await expect(token.connect(bob).emergencyWithdraw(bob.address)).to.be.revertedWith("Caller is not the owner");
     });
 
     it("should revert if a malicious contract calls it on behalf of the owner", async function () {
       const attacker = await ethers.deployContract("TxOriginAttacker", [await token.getAddress()], bob);
 
-      await expect(attacker.connect(owner).claimAirdrop())
-        .to.be.revertedWithCustomError(token, "OwnableUnauthorizedAccount")
-        .withArgs(await attacker.getAddress());
+      await expect(attacker.connect(owner).claimAirdrop()).to.be.revertedWith("Caller is not the owner");
     });
   });
 });
