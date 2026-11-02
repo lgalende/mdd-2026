@@ -9,6 +9,13 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
  *
  * Combines `WrappedTokenV4A` and `WrappedTokenV4B`: `withdraw` follows the checks-effects-interactions pattern
  * and is protected with a lock. The repeated checks are moved into the `onlyOwner` and `nonReentrant` modifiers.
+ *
+ * Why both are needed:
+ * - Checks-effects-interactions keeps the state consistent whenever `msg.sender` takes control, so it also protects
+ *   functions without the lock, such as `transfer` (see `WrappedTokenV4B`). But it only works if every change keeps
+ *   the right order, and some external calls are hard to spot
+ * - `nonReentrant` does not depend on the order, so it still stops re-entering `withdraw` if the order breaks.
+ *   But it only protects the functions that use it
  */
 contract WrappedTokenV5 is ERC20 {
   address public owner;

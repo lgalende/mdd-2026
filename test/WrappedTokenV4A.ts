@@ -45,5 +45,18 @@ describe("WrappedTokenV4A", function () {
         "ETH transfer failed",
       );
     });
+
+    it("should burn the tokens before the caller can re-enter transfer", async function () {
+      const attacker = await ethers.deployContract("CrossFunctionReentrancyAttacker", [await token.getAddress()], bob);
+
+      // the tokens are already burned when the attacker re-enters, so it transfers 0 tokens
+      await attacker.connect(bob).attack({ value: amount });
+      expect(await token.balanceOf(bob.address)).to.equal(0n);
+      await expect(token.connect(bob).withdraw()).to.be.revertedWith("Insufficient balance");
+
+      // Alice's deposit is still in the contract
+      const contractEthBalanceAfter = await ethers.provider.getBalance(token.getAddress());
+      expect(contractEthBalanceAfter).to.equal(amount);
+    });
   });
 });

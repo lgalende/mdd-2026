@@ -8,7 +8,8 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
  * Do not use this contract in production environments.
  *
  * Same as `WrappedTokenV3`, but `withdraw` and `emergencyWithdraw` are protected with a lock.
- * Unlike `WrappedTokenV4A`, `withdraw` keeps the vulnerable order of `WrappedTokenV3`: the lock alone stops the attack.
+ * Unlike `WrappedTokenV4A`, `withdraw` keeps the vulnerable order of `WrappedTokenV3`: the lock stops re-entering `withdraw`,
+ * but not re-entering other functions, such as `transfer`.
  */
 contract WrappedTokenV4B is ERC20 {
   address public owner;
@@ -41,6 +42,7 @@ contract WrappedTokenV4B is ERC20 {
    * 1. If `locked` is true, a protected function is already running, so it reverts
    * 2. `locked` is set to true before calling `msg.sender`. If `msg.sender` re-enters, step 1 reverts
    * 3. `locked` is set back to false at the end. Otherwise, nobody could call it again
+   * Only functions that check `locked` are protected: `msg.sender` can still call `transfer` before its tokens are burned
    */
   function withdraw() external {
     require(!locked, "Reentrant call");
