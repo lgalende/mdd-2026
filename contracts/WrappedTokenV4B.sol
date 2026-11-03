@@ -50,6 +50,9 @@ contract WrappedTokenV4B is ERC20 {
 
     require(balanceOf(msg.sender) > 0, "Insufficient balance");
 
+    // BUG 3: reentrancy, still present. The lock stops re-entering `withdraw`, but ETH is still sent before
+    // the tokens are burned: `msg.sender` can call `transfer` from its `receive` function to move the tokens
+    // to another account, which then withdraws them again. Fixed in `WrappedTokenV4A` and `WrappedTokenV5`
     (bool success, ) = msg.sender.call{value: balanceOf(msg.sender)}("");
     require(success, "ETH transfer failed");
 

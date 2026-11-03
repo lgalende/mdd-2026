@@ -39,6 +39,9 @@ contract WrappedTokenV2 is ERC20 {
   function withdraw() external {
     require(balanceOf(msg.sender) > 0, "Insufficient balance");
 
+    // BUG 3: reentrancy. ETH is sent before the tokens are burned, so `msg.sender` takes control from its `receive`
+    // function while its balance is still the same. It can re-enter `withdraw` to get paid again, or call `transfer`
+    // to move the tokens to another account that withdraws them again. Fixed in `WrappedTokenV4A`
     (bool success, ) = msg.sender.call{value: balanceOf(msg.sender)}("");
     require(success, "ETH transfer failed");
 
@@ -55,6 +58,8 @@ contract WrappedTokenV2 is ERC20 {
    * `call` is used to transfer ETH from the contract balance
    */
   function emergencyWithdraw(address recipient) external {
+    // BUG 2: `tx.origin` is the owner even when the owner calls a malicious contract that calls this function,
+    // so an attacker can drain the contract by tricking the owner. Fixed in `WrappedTokenV3`
     require(tx.origin == owner, "Caller is not the owner");
 
     uint256 contractBalance = address(this).balance;

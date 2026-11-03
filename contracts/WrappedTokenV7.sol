@@ -107,6 +107,11 @@ contract WrappedTokenV7 is ERC20, Ownable, ReentrancyGuard {
    * Mints have `from = address(0)` and burns have `to = address(0)`
    */
   function _update(address from, address to, uint256 value) internal override {
+    // BUG 4: unbounded loop. `isBlacklisted` loops over the whole blacklist, twice per call, and the blacklist
+    // can only grow:
+    // - every mint, burn and transfer gets more expensive with every blacklisted account, for every user
+    // - once the loops cost more than the block gas limit, nobody can deposit, transfer or withdraw (denial of service)
+    // Fixed in `WrappedTokenV8`
     require(!isBlacklisted(from), "Sender is blacklisted");
     require(!isBlacklisted(to), "Recipient is blacklisted");
     super._update(from, to, value);
