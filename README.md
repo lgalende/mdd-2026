@@ -1,5 +1,7 @@
 # mdd-2026
 
+> Hands-on upgradeability class: see [contracts/upgradeability/README.md](contracts/upgradeability/README.md).
+
 A [Hardhat 3](https://hardhat.org/docs/getting-started) project using TypeScript, `mocha` for tests, `ethers` v6 for Ethereum interactions, and Hardhat Ignition for deployments. `forge-std` is installed, so Foundry-compatible Solidity tests (`*.t.sol`) can be added alongside the TypeScript ones.
 
 The project contains `Token`, an ERC20 built on [OpenZeppelin Contracts](https://docs.openzeppelin.com/contracts/5.x/erc20) v5:
