@@ -16,6 +16,7 @@ contract VaultTransparentV2 is Initializable, OwnableUpgradeable {
     // BUG 5: front-runnable migration. `reinitializer(2)` is only safe if it runs atomically inside
     // `upgradeAndCall`. If the admin upgrades with empty data, the first caller picks the fee.
     // Fixed in `VaultV2` (owner check) and `VaultUUPSV2` (`onlyOwner`)
+    /// @custom:oz-upgrades-validate-as-initializer
     function initializeV2(uint256 fee_) external reinitializer(2) {
         fee = fee_;
     }

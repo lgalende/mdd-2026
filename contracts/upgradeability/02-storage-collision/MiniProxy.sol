@@ -41,7 +41,15 @@ contract MiniProxy {
     /// @dev Any selector not defined above is forwarded with delegatecall:
     /// the implementation's code runs against THIS contract's storage and balance.
     fallback() external payable {
-        address impl = implementation;
+        _delegate(implementation);
+    }
+
+    /// @dev Plain ETH transfers (empty calldata) are forwarded too, so the implementation decides.
+    receive() external payable {
+        _delegate(implementation);
+    }
+
+    function _delegate(address impl) private {
         assembly {
             // Copy calldata to memory at 0
             calldatacopy(0, 0, calldatasize())

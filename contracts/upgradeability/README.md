@@ -41,8 +41,8 @@ npx hardhat build
 
 ```shell
 npx hardhat test test/upgradeability/01-*.ts   # call vs delegatecall
-npx hardhat test test/upgradeability/02-*.ts   # hand-made MiniProxy
-npx hardhat test test/upgradeability/03-*.ts   # collision, constructor, layout, validateUpgrade
+npx hardhat test test/upgradeability/02-*.ts   # hand-made MiniProxy, slot 0 collision
+npx hardhat test test/upgradeability/03-*.ts   # EIP-1967 fix, constructor, layout, validateUpgrade
 npx hardhat test test/upgradeability/04-*.ts   # constructor vs initialize
 npx hardhat test test/upgradeability/05-*.ts   # OpenZeppelin Transparent
 npx hardhat test test/upgradeability/06-*.ts   # OpenZeppelin UUPS + gas comparison
@@ -71,8 +71,8 @@ and the EIP-1967 slot constants.
 | # | Block | Time | Contracts | What it shows |
 |---|-------|------|-----------|---------------|
 | 1 | `01-delegatecall` | 10 min | `Caller`, `Logic` | `call` changes `Logic`'s `x`; `delegatecall` changes `Caller`'s. The event shows `msg.sender` and `address(this)` in each case. |
-| 2 | `02-storage-collision` | 20 min | `MiniProxy`, `VaultV1` | A ~30-line proxy with `fallback` + `delegatecall`, used as a `VaultV1` via `getContractAt`. State and ETH live in the proxy. |
-| 3 | `03-storage-shift` | 20 min | `MiniProxy1967`, `VaultV1`, `VaultV2Broken` | `setOwner(alice)` overwrites slot 0 (implementation) and bricks the proxy. Fix with EIP-1967 slots. A `VaultV1` that sets `owner` in its constructor has `owner() == address(0)` through the proxy. Upgrading to a V2 with `fee` in the middle corrupts `totalDeposits`. `scripts/layout.ts` and `validateUpgrade`. |
+| 2 | `02-storage-collision` | 20 min | `MiniProxy`, `VaultV1` | A ~30-line proxy with `fallback` + `delegatecall`, used as a `VaultV1` via `getContractAt`. State and ETH live in the proxy. `setOwner(alice)` overwrites slot 0 (implementation) and bricks the proxy. |
+| 3 | `03-storage-shift` | 20 min | `MiniProxy1967`, `VaultV1`, `VaultV2Broken` | Fix for the collision with EIP-1967 slots. A `VaultV1` that sets `owner` in its constructor has `owner() == address(0)` through the proxy. Upgrading to a V2 with `fee` in the middle corrupts `totalDeposits`. `scripts/layout.ts` and `validateUpgrade`. |
 | 4 | `04-initialize` | 10 min | `VaultInitProxy`, `VaultV1A`, `VaultV1B`, `VaultV2` | `initialize` replaces the constructor and `initializer` prevents re-initialization. Attack: initializing the implementation. Fix with `_disableInitializers()`. `reinitializer(2)` inside `upgradeToAndCall`. |
 | 5 | `05-transparent` | 10 min | `VaultTransparentProxy`, `VaultTransparentV1`, `VaultTransparentV2` | `ProxyAdmin` read from the admin slot, `upgradeAndCall`, `ProxyDeniedAdminAccess`. |
 | 6 | `06-uups` | 15 min | `VaultUUPSProxy`, `VaultUUPSV1B`, `VaultUUPSV2`, `VaultUUPSV1A` | UUPS: upgrade from the implementation, `onlyOwner` in `_authorizeUpgrade`. Using `@openzeppelin/contracts` instead of `-upgradeable` freezes the proxy. Gas comparison with Transparent. |

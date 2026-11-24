@@ -54,7 +54,15 @@ contract MiniProxy1967 {
     }
 
     fallback() external payable {
-        address impl = StorageSlot.getAddressSlot(IMPLEMENTATION_SLOT).value;
+        _delegate(StorageSlot.getAddressSlot(IMPLEMENTATION_SLOT).value);
+    }
+
+    /// @dev Plain ETH transfers (empty calldata) are forwarded too, so the implementation decides.
+    receive() external payable {
+        _delegate(StorageSlot.getAddressSlot(IMPLEMENTATION_SLOT).value);
+    }
+
+    function _delegate(address impl) private {
         assembly {
             calldatacopy(0, 0, calldatasize())
             let ok := delegatecall(gas(), impl, 0, calldatasize(), 0, 0)

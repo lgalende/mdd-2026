@@ -12,51 +12,7 @@ const { ethers, networkHelpers } = connection;
 const VAULT_V1 = "contracts/upgradeability/02-storage-collision/VaultV1.sol:VaultV1";
 const VAULT_V1_CONSTRUCTOR = "contracts/upgradeability/03-storage-shift/VaultV1.sol:VaultV1";
 
-describe("03 - Breaking the proxy", function () {
-  describe("storage collision (implementation in slot 0)", function () {
-    async function deployFixture() {
-      const [admin, alice] = await ethers.getSigners();
-      const implementation = (await ethers.deployContract(VAULT_V1)) as unknown as VaultV1;
-      const proxy = await ethers.deployContract("MiniProxy", [await implementation.getAddress()]);
-      const vault = (await ethers.getContractAt(VAULT_V1, await proxy.getAddress())) as unknown as VaultV1;
-      return { admin, alice, implementation, proxy, vault };
-    }
-
-    it("before setOwner, owner() already reads the implementation address", async function () {
-      const { implementation, vault } = await networkHelpers.loadFixture(deployFixture);
-
-      // This is BUG 1: VaultV1.owner and MiniProxy.implementation share slot 0.
-      expect(await vault.owner()).to.equal(await implementation.getAddress());
-    });
-
-    it("setOwner(alice) overwrites the implementation with alice", async function () {
-      const { alice, proxy, vault } = await networkHelpers.loadFixture(deployFixture);
-
-      await vault.setOwner(alice.address);
-
-      // This is BUG 1: writing `owner` wrote the proxy's `implementation`.
-      expect(await proxy.implementation()).to.equal(alice.address);
-    });
-
-    it("after that, the next call fails: the proxy delegatecalls into an EOA", async function () {
-      const { alice, vault } = await networkHelpers.loadFixture(deployFixture);
-      await vault.setOwner(alice.address);
-
-      // delegatecall to an address without code SUCCEEDS with empty return data,
-      // so view functions can't be decoded...
-      let error: any;
-      try {
-        await vault.version();
-      } catch (e) {
-        error = e;
-      }
-      expect(error?.code).to.equal("BAD_DATA");
-
-      // ...and deposits "succeed" but no code runs: the ETH is stuck in the proxy.
-      await expect(vault.deposit({ value: 1000n })).to.changeEtherBalance(ethers, vault, 1000n);
-    });
-  });
-
+describe("03 - Storage shift", function () {
   describe("fix: MiniProxy1967 (EIP-1967 slots)", function () {
     async function deployFixture() {
       const [admin, alice] = await ethers.getSigners();

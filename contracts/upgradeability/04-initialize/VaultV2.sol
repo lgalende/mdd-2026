@@ -19,6 +19,7 @@ contract VaultV2 is Initializable {
     /// `reinitializer(2)` runs once per proxy when moving to version 2.
     /// Owner-gated because, unlike in the same upgrade tx, it could be front-run
     /// when called later (e.g. beacon proxies in block 7).
+    /// @custom:oz-upgrades-validate-as-initializer
     function initializeV2(uint256 fee_) external reinitializer(2) {
         if (msg.sender != owner) revert NotOwner();
         fee = fee_;

@@ -13,6 +13,7 @@ contract VaultUUPSV2 is Initializable, OwnableUpgradeable, UUPSUpgradeable {
         _disableInitializers();
     }
 
+    /// @custom:oz-upgrades-validate-as-initializer
     function initializeV2(uint256 fee_) external reinitializer(2) onlyOwner {
         fee = fee_;
     }
