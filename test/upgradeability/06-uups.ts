@@ -58,7 +58,7 @@ describe("06 - UUPS (VaultUUPSProxy + UUPSUpgradeable)", function () {
       const { owner, implementation, vault } = await networkHelpers.loadFixture(deployFixture);
 
       expect(await implementation.owner()).to.equal(owner.address);
-      // This is BUG 6: Ownable's constructor never ran in the proxy's context.
+      // This is BUG 5: Ownable's constructor never ran in the proxy's context.
       expect(await vault.owner()).to.equal(ethers.ZeroAddress);
     });
 
@@ -66,7 +66,7 @@ describe("06 - UUPS (VaultUUPSProxy + UUPSUpgradeable)", function () {
       const { owner, vault } = await networkHelpers.loadFixture(deployFixture);
       const v2 = await ethers.deployContract("VaultUUPSV2");
 
-      // This is BUG 6: `onlyOwner` compares against address(0), so the proxy is frozen forever.
+      // This is BUG 5: `onlyOwner` compares against address(0), so the proxy is frozen forever.
       await expect(vault.connect(owner).upgradeToAndCall(await v2.getAddress(), "0x"))
         .to.be.revertedWithCustomError(vault, "OwnableUnauthorizedAccount")
         .withArgs(owner.address);

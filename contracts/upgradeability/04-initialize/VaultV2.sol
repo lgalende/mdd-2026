@@ -10,6 +10,7 @@ contract VaultV2 is Initializable {
     uint256 public fee; // new, at the end
 
     error NotOwner();
+    error TransferFailed();
 
     constructor() {
         _disableInitializers();
@@ -25,9 +26,15 @@ contract VaultV2 is Initializable {
         fee = fee_;
     }
 
-    // Locked ETH. There is no `withdraw`, so every deposited wei stays in the proxy forever
     function deposit() external payable {
         totalDeposits += msg.value;
+    }
+
+    function withdraw() external {
+        if (msg.sender != owner) revert NotOwner();
+        totalDeposits = 0;
+        (bool ok, ) = owner.call{ value: address(this).balance }("");
+        if (!ok) revert TransferFailed();
     }
 
     function version() external pure returns (uint256) {

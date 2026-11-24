@@ -5,8 +5,8 @@ import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable
 import { UUPSUpgradeable } from "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
-/// @notice DO NOT USE: see BUG 6.
-// BUG 6: non-upgradeable OZ dependency. `Ownable` (from @openzeppelin/contracts, not -upgradeable) sets
+/// @notice DO NOT USE: see BUG 5.
+// BUG 5: non-upgradeable OZ dependency. `Ownable` (from @openzeppelin/contracts, not -upgradeable) sets
 // `_owner` in its constructor, so it only exists in the implementation's storage. Through the proxy
 // `owner()` is `address(0)`, nobody passes `onlyOwner` and the proxy can never be upgraded again.
 // It also stores `_owner` in slot 0 instead of a namespaced slot, shifting the layout (`totalDeposits`

@@ -14,11 +14,6 @@ contract VaultV2Broken {
         fee = fee_;
     }
 
-    // No access control. Anyone can call it and become the owner
-    function setOwner(address owner_) external {
-        owner = owner_;
-    }
-
     // Locked ETH. There is no `withdraw`, so every deposited wei stays in the proxy forever
     function deposit() external payable {
         totalDeposits += msg.value;

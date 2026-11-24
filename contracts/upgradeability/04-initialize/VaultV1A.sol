@@ -8,16 +8,25 @@ contract VaultV1A is Initializable {
     address public owner;
     uint256 public totalDeposits;
 
+    error NotOwner();
+    error TransferFailed();
+
     // BUG 4: uninitialized implementation. Nobody initializes the implementation contract itself, so
-    // anyone can call `initialize` on it directly and become its owner. In a UUPS implementation that
-    // owner could upgrade it. Fixed in `VaultV1B` (`_disableInitializers()` in the constructor)
+    // anyone can call `initialize` on it directly, become its owner and `withdraw` any ETH sent to the
+    // implementation address by mistake. Fixed in `VaultV1B` (`_disableInitializers()` in the constructor)
     function initialize(address owner_) external initializer {
         owner = owner_;
     }
 
-    // Locked ETH. There is no `withdraw`, so every deposited wei stays in the proxy forever
     function deposit() external payable {
         totalDeposits += msg.value;
+    }
+
+    function withdraw() external {
+        if (msg.sender != owner) revert NotOwner();
+        totalDeposits = 0;
+        (bool ok, ) = owner.call{ value: address(this).balance }("");
+        if (!ok) revert TransferFailed();
     }
 
     function version() external pure returns (uint256) {

@@ -17,16 +17,16 @@ is still present). Tests that show a bug **pass** by asserting the broken behavi
 | BUG 2: state set in the constructor (`owner`) | `03-storage-shift/VaultV1` | `VaultV1A` (`initialize` + `initializer`) |
 | BUG 3: storage layout shift | `VaultV2Broken` | add new variables at the end |
 | BUG 4: uninitialized implementation | `VaultV1A` | `VaultV1B` |
-| BUG 5: front-runnable migration | `VaultTransparentV2` | `VaultV2`, `VaultUUPSV2` |
-| BUG 6: non-upgradeable OZ dependency (`Ownable` instead of `OwnableUpgradeable`) | `VaultUUPSV1A` | `VaultUUPSV1B` |
+| BUG 5: non-upgradeable OZ dependency (`Ownable` instead of `OwnableUpgradeable`) | `VaultUUPSV1A` | `VaultUUPSV1B` |
 
 Some issues are left on purpose to keep the code short. They are explained in comments but not
 labeled as bugs, since OpenZeppelin's contracts already solve them:
 
 - The hand-made proxies (`MiniProxy`, `MiniProxy1967`) have function selector clashes, no code
   check on upgrade, no `Upgraded` event and a non-transferable admin.
-- No vault has a `withdraw`, so deposited ETH is locked forever.
-- `setOwner` in `02-storage-collision/VaultV1` and `VaultV2Broken` has no access control, and `VaultV2Broken.initialize` has no guard.
+- Only the block 4 vaults have a `withdraw`; in the others deposited ETH is locked forever.
+- `VaultTransparentV2.initializeV2` has no access control: it is meant to run inside `upgradeAndCall`.
+- `setOwner` in `02-storage-collision/VaultV1` has no access control, and `VaultV2Broken.initialize` has no guard.
 
 ## Setup
 
