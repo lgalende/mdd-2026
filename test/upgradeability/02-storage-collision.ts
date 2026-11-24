@@ -1,16 +1,20 @@
 import { expect } from "chai";
 import { network } from "hardhat";
 import { readAddressSlot } from "../../scripts/slots.js";
+import type { VaultV1 } from "../../types/ethers-contracts/contracts/upgradeability/02-storage-collision/VaultV1.js";
 
 const { ethers, networkHelpers } = await network.create();
+
+// Another contract is also named VaultV1 (block 3), so this one is referenced by fully qualified name.
+const VAULT_V1 = "contracts/upgradeability/02-storage-collision/VaultV1.sol:VaultV1";
 
 describe("02 - MiniProxy (hand-made proxy)", function () {
   async function deployFixture() {
     const [admin, alice] = await ethers.getSigners();
-    const implementation = await ethers.deployContract("VaultV1");
+    const implementation = (await ethers.deployContract(VAULT_V1)) as unknown as VaultV1;
     const proxy = await ethers.deployContract("MiniProxy", [await implementation.getAddress()]);
     // Same address, VaultV1's ABI: ethers doesn't know (or care) it's a proxy.
-    const vault = await ethers.getContractAt("VaultV1", await proxy.getAddress());
+    const vault = (await ethers.getContractAt(VAULT_V1, await proxy.getAddress())) as unknown as VaultV1;
     return { admin, alice, implementation, proxy, vault };
   }
 

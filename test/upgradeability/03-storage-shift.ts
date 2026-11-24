@@ -1,32 +1,38 @@
 import hre, { network } from "hardhat";
 import { expect } from "chai";
 import { upgrades } from "@openzeppelin/hardhat-upgrades";
-import { IMPLEMENTATION_SLOT, readAddressSlot, readUintSlot } from "../../scripts/slots.js";
+import { IMPLEMENTATION_SLOT, readAddressSlot } from "../../scripts/slots.js";
+import type { VaultV1 } from "../../types/ethers-contracts/contracts/upgradeability/02-storage-collision/VaultV1.js";
+import type { VaultV1 as VaultV1Constructor } from "../../types/ethers-contracts/contracts/upgradeability/03-storage-shift/VaultV1.js";
 
 const connection = await network.create();
 const { ethers, networkHelpers } = connection;
+
+// Two contracts are named VaultV1, so they are referenced by fully qualified name.
+const VAULT_V1 = "contracts/upgradeability/02-storage-collision/VaultV1.sol:VaultV1";
+const VAULT_V1_CONSTRUCTOR = "contracts/upgradeability/03-storage-shift/VaultV1.sol:VaultV1";
 
 describe("03 - Breaking the proxy", function () {
   describe("storage collision (implementation in slot 0)", function () {
     async function deployFixture() {
       const [admin, alice] = await ethers.getSigners();
-      const implementation = await ethers.deployContract("VaultV1");
+      const implementation = (await ethers.deployContract(VAULT_V1)) as unknown as VaultV1;
       const proxy = await ethers.deployContract("MiniProxy", [await implementation.getAddress()]);
-      const vault = await ethers.getContractAt("VaultV1", await proxy.getAddress());
+      const vault = (await ethers.getContractAt(VAULT_V1, await proxy.getAddress())) as unknown as VaultV1;
       return { admin, alice, implementation, proxy, vault };
     }
 
-    it("before initialize, owner() already reads the implementation address", async function () {
+    it("before setOwner, owner() already reads the implementation address", async function () {
       const { implementation, vault } = await networkHelpers.loadFixture(deployFixture);
 
       // This is BUG 1: VaultV1.owner and MiniProxy.implementation share slot 0.
       expect(await vault.owner()).to.equal(await implementation.getAddress());
     });
 
-    it("initialize(alice) overwrites the implementation with alice", async function () {
+    it("setOwner(alice) overwrites the implementation with alice", async function () {
       const { alice, proxy, vault } = await networkHelpers.loadFixture(deployFixture);
 
-      await vault.initialize(alice.address);
+      await vault.setOwner(alice.address);
 
       // This is BUG 1: writing `owner` wrote the proxy's `implementation`.
       expect(await proxy.implementation()).to.equal(alice.address);
@@ -34,7 +40,7 @@ describe("03 - Breaking the proxy", function () {
 
     it("after that, the next call fails: the proxy delegatecalls into an EOA", async function () {
       const { alice, vault } = await networkHelpers.loadFixture(deployFixture);
-      await vault.initialize(alice.address);
+      await vault.setOwner(alice.address);
 
       // delegatecall to an address without code SUCCEEDS with empty return data,
       // so view functions can't be decoded...
@@ -54,9 +60,9 @@ describe("03 - Breaking the proxy", function () {
   describe("fix: MiniProxy1967 (EIP-1967 slots)", function () {
     async function deployFixture() {
       const [admin, alice] = await ethers.getSigners();
-      const implementation = await ethers.deployContract("VaultV1");
+      const implementation = (await ethers.deployContract(VAULT_V1)) as unknown as VaultV1;
       const proxy = await ethers.deployContract("MiniProxy1967", [await implementation.getAddress(), "0x"]);
-      const vault = await ethers.getContractAt("VaultV1", await proxy.getAddress());
+      const vault = (await ethers.getContractAt(VAULT_V1, await proxy.getAddress())) as unknown as VaultV1;
       return { admin, alice, implementation, proxy, vault };
     }
 
@@ -68,12 +74,12 @@ describe("03 - Breaking the proxy", function () {
       expect(BigInt(await proxy.ADMIN_SLOT())).to.equal(BigInt(ethers.id("eip1967.proxy.admin")) - 1n);
     });
 
-    it("initialize(alice) no longer collides: owner is alice, implementation intact", async function () {
+    it("setOwner(alice) no longer collides: owner is alice, implementation intact", async function () {
       const { alice, implementation, proxy, vault } = await networkHelpers.loadFixture(deployFixture);
       const proxyAddress = await proxy.getAddress();
 
       expect(await vault.owner()).to.equal(ethers.ZeroAddress);
-      await vault.initialize(alice.address);
+      await vault.setOwner(alice.address);
 
       expect(await vault.owner()).to.equal(alice.address);
       expect(await readAddressSlot(ethers.provider, proxyAddress, 0n)).to.equal(alice.address);
@@ -84,15 +90,28 @@ describe("03 - Breaking the proxy", function () {
     });
   });
 
+  describe("state set in the constructor", function () {
+    it("VaultV1 (03) sets the owner in its constructor: through the proxy owner() is address(0)", async function () {
+      const [, alice] = await ethers.getSigners();
+      const implementation = (await ethers.deployContract(VAULT_V1_CONSTRUCTOR, [alice.address])) as unknown as VaultV1Constructor;
+      const proxy = await ethers.deployContract("MiniProxy1967", [await implementation.getAddress(), "0x"]);
+      const vault = (await ethers.getContractAt(VAULT_V1_CONSTRUCTOR, await proxy.getAddress())) as unknown as VaultV1Constructor;
+
+      expect(await implementation.owner()).to.equal(alice.address);
+      // This is BUG 2: the constructor never ran in the proxy's context.
+      expect(await vault.owner()).to.equal(ethers.ZeroAddress);
+    });
+  });
+
   describe("storage layout on upgrade", function () {
     const DEPOSIT = 1000n;
 
     async function deployFixture() {
       const [admin, alice] = await ethers.getSigners();
-      const v1 = await ethers.deployContract("VaultV1");
-      const initData = v1.interface.encodeFunctionData("initialize", [alice.address]);
+      const v1 = (await ethers.deployContract(VAULT_V1)) as unknown as VaultV1;
+      const initData = v1.interface.encodeFunctionData("setOwner", [alice.address]);
       const proxy = await ethers.deployContract("MiniProxy1967", [await v1.getAddress(), initData]);
-      const vault = await ethers.getContractAt("VaultV1", await proxy.getAddress());
+      const vault = (await ethers.getContractAt(VAULT_V1, await proxy.getAddress())) as unknown as VaultV1;
       await vault.connect(alice).deposit({ value: DEPOSIT });
       return { admin, alice, proxy, vault };
     }
@@ -113,44 +132,25 @@ describe("03 - Breaking the proxy", function () {
       // The ETH is still there, the accounting is what broke.
       expect(await ethers.provider.getBalance(await proxy.getAddress())).to.equal(DEPOSIT);
     });
-
-    it("VaultV2 (fee at the end) preserves everything", async function () {
-      const { alice, proxy } = await networkHelpers.loadFixture(deployFixture);
-      const v2 = await ethers.deployContract("VaultV2");
-
-      await proxy.upgradeTo(await v2.getAddress());
-      const vault = await ethers.getContractAt("VaultV2", await proxy.getAddress());
-
-      expect(await vault.version()).to.equal(2n);
-      expect(await vault.owner()).to.equal(alice.address);
-      expect(await vault.totalDeposits()).to.equal(DEPOSIT);
-      expect(await vault.fee()).to.equal(0n);
-
-      await vault.initializeV2(50);
-      expect(await vault.fee()).to.equal(50n);
-      expect(await readUintSlot(ethers.provider, await proxy.getAddress(), 2n)).to.equal(50n);
-    });
   });
 
   describe("@openzeppelin/hardhat-upgrades validateUpgrade", function () {
     // The plugin compares the storage layouts from the build-info, like scripts/layout.ts.
-    it("rejects VaultV1 -> VaultV2Broken and accepts VaultV1 -> VaultV2", async function () {
+    it("flags VaultV1 -> VaultV2Broken", async function () {
       const upgradesApi = await upgrades(hre, connection);
-      const V1 = await ethers.getContractFactory("VaultV1");
-      const V2Broken = await ethers.getContractFactory("VaultV2Broken");
-      const V2 = await ethers.getContractFactory("VaultV2");
-      const opts = { kind: "transparent" as const };
 
       let error: any;
       try {
-        await upgradesApi.validateUpgrade(V1, V2Broken, opts);
+        await upgradesApi.validateUpgrade(
+          await ethers.getContractFactory(VAULT_V1),
+          await ethers.getContractFactory("VaultV2Broken"),
+          { kind: "transparent" },
+        );
       } catch (e) {
         error = e;
       }
       expect(error?.message).to.match(/New storage layout is incompatible/);
       expect(error?.message).to.include("Inserted `fee`");
-
-      await upgradesApi.validateUpgrade(V1, V2, opts); // does not throw
     });
   });
 });

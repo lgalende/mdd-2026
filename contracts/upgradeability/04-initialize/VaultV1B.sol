@@ -2,18 +2,20 @@
 pragma solidity ^0.8.28;
 
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
-import { OwnableUpgradeable } from "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 
-/// @notice Transparent: no upgrade code here. Upgrades go through the proxy's ProxyAdmin.
-contract VaultTransparent is Initializable, OwnableUpgradeable {
+/// @notice VaultV1A + the fix: lock the implementation at deploy time.
+contract VaultV1B is Initializable {
+    address public owner;
     uint256 public totalDeposits;
 
+    /// @dev Runs on the implementation only (never through the proxy), so it
+    /// marks the implementation as initialized forever. Proxies are not affected.
     constructor() {
         _disableInitializers();
     }
 
     function initialize(address owner_) external initializer {
-        __Ownable_init(owner_);
+        owner = owner_;
     }
 
     // Locked ETH. There is no `withdraw`, so every deposited wei stays in the proxy forever

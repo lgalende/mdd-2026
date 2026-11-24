@@ -12,7 +12,6 @@ export default defineConfig({
     // OZ proxies are not imported by any project contract, so we ask Hardhat
     // to compile them to get their artifacts (used by the upgradeability tests).
     npmFilesToBuild: [
-      "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol",
       "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol",
       "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol",
       "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol",

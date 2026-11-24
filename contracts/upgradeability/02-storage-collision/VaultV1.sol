@@ -6,10 +6,9 @@ contract VaultV1 {
     address public owner; // slot 0
     uint256 public totalDeposits; // slot 1
 
-    // BUG 2: unprotected initializer. Anyone can call it, at any time, and become the owner.
-    // No guard on purpose: behind MiniProxy, `owner` reads the implementation address (slot 0),
-    // so a `require(owner == address(0))` would always revert. Fixed in `VaultInit` (`initializer`)
-    function initialize(address owner_) external {
+    // No access control. Anyone can call it and become the owner. Left open on purpose: behind MiniProxy,
+    // `owner` reads the implementation address (slot 0), so an `onlyOwner` check would lock everyone out
+    function setOwner(address owner_) external {
         owner = owner_;
     }
 

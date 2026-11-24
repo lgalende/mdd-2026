@@ -1,7 +1,7 @@
 // Prints the storage layout of several contracts side by side, read from the build-info.
 //
 //   npx hardhat build && npx hardhat run scripts/layout.ts
-//   LAYOUT_CONTRACTS=VaultUUPS,VaultUUPSV2 npx hardhat run scripts/layout.ts
+//   LAYOUT_CONTRACTS=VaultUUPSV1B,VaultUUPSV2 npx hardhat run scripts/layout.ts
 //
 // Requires `storageLayout` in the solc outputSelection (see hardhat.config.ts).
 import { readFile } from "node:fs/promises";
@@ -11,7 +11,10 @@ import hre from "hardhat";
 type StorageEntry = { label: string; slot: string; offset: number; type: string };
 type StorageLayout = { storage: StorageEntry[]; types: Record<string, { label: string; numberOfBytes: string }> | null };
 
-const names = (process.env.LAYOUT_CONTRACTS ?? "VaultV1,VaultV2Broken,VaultV2").split(",").map((n) => n.trim());
+// Use a fully qualified name ("path/File.sol:Name") when two contracts share a name, like the two VaultV1.
+const DEFAULT = "contracts/upgradeability/02-storage-collision/VaultV1.sol:VaultV1,VaultV2Broken";
+const names = (process.env.LAYOUT_CONTRACTS ?? DEFAULT).split(",").map((n) => n.trim());
+const labels = names.map((n) => n.split(":").pop()!);
 
 async function readLayout(name: string): Promise<StorageLayout> {
   const artifact = await hre.artifacts.readArtifact(name);
@@ -39,7 +42,7 @@ const rows = sorted.map(({ slot, offset }) => {
   const row: Record<string, string> = { slot: offset === 0 ? `${slot}` : `${slot} (+${offset})` };
   layouts.forEach((layout, i) => {
     const e = layout.storage.find((s) => BigInt(s.slot) === slot && s.offset === offset);
-    row[names[i]] = e === undefined ? "" : `${e.label}: ${layout.types?.[e.type]?.label ?? e.type}`;
+    row[labels[i]] = e === undefined ? "" : `${e.label}: ${layout.types?.[e.type]?.label ?? e.type}`;
   });
   return row;
 });
@@ -54,5 +57,5 @@ layouts.slice(1).forEach((layout, i) => {
     return e === undefined || e.label !== b.label || e.type !== b.type;
   });
   const status = broken.length === 0 ? "OK" : `BROKEN (${broken.map((b) => `${b.label}@${b.slot}`).join(", ")})`;
-  console.log(`${names[0]} -> ${names[i + 1]}: ${status}`);
+  console.log(`${labels[0]} -> ${labels[i + 1]}: ${status}`);
 });

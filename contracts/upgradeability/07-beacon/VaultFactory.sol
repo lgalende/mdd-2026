@@ -2,8 +2,8 @@
 pragma solidity ^0.8.28;
 
 import { UpgradeableBeacon } from "@openzeppelin/contracts/proxy/beacon/UpgradeableBeacon.sol";
-import { BeaconProxy } from "@openzeppelin/contracts/proxy/beacon/BeaconProxy.sol";
-import { VaultInitSecure } from "../04-initialize/VaultInitSecure.sol";
+import { VaultBeaconProxy } from "./VaultBeaconProxy.sol";
+import { VaultV1B } from "../04-initialize/VaultV1B.sol";
 
 /// @notice Many proxies, one beacon: upgrading the beacon upgrades every vault in one tx.
 contract VaultFactory {
@@ -17,9 +17,9 @@ contract VaultFactory {
         beacon = new UpgradeableBeacon(implementation, msg.sender);
     }
 
-    /// @dev Each BeaconProxy asks the beacon for the implementation on every call.
+    /// @dev Each VaultBeaconProxy asks the beacon for the implementation on every call.
     function createVault(address owner) external returns (address vault) {
-        vault = address(new BeaconProxy(address(beacon), abi.encodeCall(VaultInitSecure.initialize, (owner))));
+        vault = address(new VaultBeaconProxy(address(beacon), abi.encodeCall(VaultV1B.initialize, (owner))));
         vaults.push(vault);
         emit VaultCreated(vault, owner);
     }

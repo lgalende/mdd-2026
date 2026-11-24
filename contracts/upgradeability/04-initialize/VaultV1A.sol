@@ -4,13 +4,13 @@ pragma solidity ^0.8.28;
 import { Initializable } from "@openzeppelin/contracts/proxy/utils/Initializable.sol";
 
 /// @notice `initialize` replaces the constructor and `initializer` makes it run only once.
-contract VaultInit is Initializable {
+contract VaultV1A is Initializable {
     address public owner;
     uint256 public totalDeposits;
 
-    // BUG 5: uninitialized implementation. Nobody initializes the implementation contract itself, so
+    // BUG 4: uninitialized implementation. Nobody initializes the implementation contract itself, so
     // anyone can call `initialize` on it directly and become its owner. In a UUPS implementation that
-    // owner could upgrade it. Fixed in `VaultInitSecure` (`_disableInitializers()` in the constructor)
+    // owner could upgrade it. Fixed in `VaultV1B` (`_disableInitializers()` in the constructor)
     function initialize(address owner_) external initializer {
         owner = owner_;
     }

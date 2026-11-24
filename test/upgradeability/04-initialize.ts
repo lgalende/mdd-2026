@@ -7,26 +7,15 @@ const { ethers, networkHelpers } = await network.create();
 // ERC-7201 slot where OZ's Initializable stores `_initialized` (the version) and `_initializing`.
 const INITIALIZABLE_SLOT = "0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00";
 
-describe("04 - Constructor vs initialize", function () {
-  it("a constructor only sets the implementation's storage, owner() via proxy is address(0)", async function () {
-    const [, alice] = await ethers.getSigners();
-    const implementation = await ethers.deployContract("VaultWithConstructor", [alice.address]);
-    const proxy = await ethers.deployContract("MiniProxy1967", [await implementation.getAddress(), "0x"]);
-    const vault = await ethers.getContractAt("VaultWithConstructor", await proxy.getAddress());
-
-    expect(await implementation.owner()).to.equal(alice.address);
-    // This is BUG 4: the constructor never ran in the proxy's context.
-    expect(await vault.owner()).to.equal(ethers.ZeroAddress);
-  });
-
-  describe("VaultInit (initializer)", function () {
+describe("04 - Initialize", function () {
+  describe("VaultV1A (initializer)", function () {
     async function deployFixture() {
       const [admin, alice, attacker] = await ethers.getSigners();
-      const implementation = await ethers.deployContract("VaultInit");
+      const implementation = await ethers.deployContract("VaultV1A");
       // Init data passed to the proxy constructor: deploy + initialize in one tx, no front-running.
       const initData = implementation.interface.encodeFunctionData("initialize", [alice.address]);
-      const proxy = await ethers.deployContract("MiniProxy1967", [await implementation.getAddress(), initData]);
-      const vault = await ethers.getContractAt("VaultInit", await proxy.getAddress());
+      const proxy = await ethers.deployContract("VaultInitProxy", [await implementation.getAddress(), initData]);
+      const vault = await ethers.getContractAt("VaultV1A", await proxy.getAddress());
       return { admin, alice, attacker, implementation, proxy, vault };
     }
 
@@ -51,19 +40,19 @@ describe("04 - Constructor vs initialize", function () {
 
       await implementation.connect(attacker).initialize(attacker.address);
 
-      // This is BUG 5: the attacker owns the implementation. Harmless here, but in a
+      // This is BUG 4: the attacker owns the implementation. Harmless here, but in a
       // UUPS implementation the owner can call upgradeToAndCall on it (pre-Cancun: selfdestruct it).
       expect(await implementation.owner()).to.equal(attacker.address);
     });
   });
 
-  describe("VaultInitSecure (_disableInitializers in the constructor)", function () {
+  describe("VaultV1B (_disableInitializers in the constructor)", function () {
     async function deployFixture() {
       const [admin, alice, attacker] = await ethers.getSigners();
-      const implementation = await ethers.deployContract("VaultInitSecure");
+      const implementation = await ethers.deployContract("VaultV1B");
       const initData = implementation.interface.encodeFunctionData("initialize", [admin.address]);
-      const proxy = await ethers.deployContract("MiniProxy1967", [await implementation.getAddress(), initData]);
-      const vault = await ethers.getContractAt("VaultInitSecure", await proxy.getAddress());
+      const proxy = await ethers.deployContract("VaultInitProxy", [await implementation.getAddress(), initData]);
+      const vault = await ethers.getContractAt("VaultV1B", await proxy.getAddress());
       return { admin, alice, attacker, implementation, proxy, vault };
     }
 
@@ -86,16 +75,16 @@ describe("04 - Constructor vs initialize", function () {
       expect(await vault.owner()).to.equal(admin.address);
     });
 
-    it("VaultInitV2: upgradeToAndCall runs initializeV2 (reinitializer(2)) in the same tx", async function () {
+    it("VaultV2: upgradeToAndCall runs initializeV2 (reinitializer(2)) in the same tx", async function () {
       const { admin, alice, proxy, vault } = await networkHelpers.loadFixture(deployFixture);
       await vault.connect(alice).deposit({ value: 1000n });
 
-      const v2 = await ethers.deployContract("VaultInitV2");
+      const v2 = await ethers.deployContract("VaultV2");
       const migration = v2.interface.encodeFunctionData("initializeV2", [50n]);
       // admin is both the proxy admin and the vault owner, so initializeV2's owner check passes.
       await proxy.connect(admin).upgradeToAndCall(await v2.getAddress(), migration);
 
-      const vaultV2 = await ethers.getContractAt("VaultInitV2", await proxy.getAddress());
+      const vaultV2 = await ethers.getContractAt("VaultV2", await proxy.getAddress());
       expect(await vaultV2.version()).to.equal(2n);
       expect(await vaultV2.owner()).to.equal(admin.address);
       expect(await vaultV2.totalDeposits()).to.equal(1000n);
@@ -108,7 +97,7 @@ describe("04 - Constructor vs initialize", function () {
 
     it("the consumed init version lives in the proxy and survives the upgrade", async function () {
       const { proxy } = await networkHelpers.loadFixture(deployFixture);
-      const v2 = await ethers.deployContract("VaultInitV2");
+      const v2 = await ethers.deployContract("VaultV2");
       await proxy.upgradeTo(await v2.getAddress());
 
       // Version 1 was consumed by V1's `initializer` and stays in the proxy's storage.
