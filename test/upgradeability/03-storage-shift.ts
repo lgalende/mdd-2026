@@ -2,23 +2,23 @@ import hre, { network } from "hardhat";
 import { expect } from "chai";
 import { upgrades } from "@openzeppelin/hardhat-upgrades";
 import { IMPLEMENTATION_SLOT, readAddressSlot } from "../../scripts/slots.js";
-import type { VaultV1 } from "../../types/ethers-contracts/contracts/upgradeability/02-storage-collision/VaultV1.js";
-import type { VaultV1 as VaultV1Constructor } from "../../types/ethers-contracts/contracts/upgradeability/03-storage-shift/VaultV1.js";
+import type { VaultV1A } from "../../types/ethers-contracts/contracts/upgradeability/03-storage-shift/VaultV1A.js";
+import type { VaultV1B } from "../../types/ethers-contracts/contracts/upgradeability/03-storage-shift/VaultV1B.js";
 
 const connection = await network.create();
 const { ethers, networkHelpers } = connection;
 
-// Two contracts are named VaultV1, so they are referenced by fully qualified name.
-const VAULT_V1 = "contracts/upgradeability/02-storage-collision/VaultV1.sol:VaultV1";
-const VAULT_V1_CONSTRUCTOR = "contracts/upgradeability/03-storage-shift/VaultV1.sol:VaultV1";
+// Block 4 also has a VaultV1A and a VaultV1B, so these are referenced by fully qualified name.
+const VAULT_V1A = "contracts/upgradeability/03-storage-shift/VaultV1A.sol:VaultV1A";
+const VAULT_V1B = "contracts/upgradeability/03-storage-shift/VaultV1B.sol:VaultV1B";
 
 describe("03 - Storage shift", function () {
   describe("fix: MiniProxy1967 (EIP-1967 slots)", function () {
     async function deployFixture() {
       const [admin, alice] = await ethers.getSigners();
-      const implementation = (await ethers.deployContract(VAULT_V1)) as unknown as VaultV1;
+      const implementation = (await ethers.deployContract(VAULT_V1A)) as unknown as VaultV1A;
       const proxy = await ethers.deployContract("MiniProxy1967", [await implementation.getAddress(), "0x"]);
-      const vault = (await ethers.getContractAt(VAULT_V1, await proxy.getAddress())) as unknown as VaultV1;
+      const vault = (await ethers.getContractAt(VAULT_V1A, await proxy.getAddress())) as unknown as VaultV1A;
       return { admin, alice, implementation, proxy, vault };
     }
 
@@ -47,11 +47,11 @@ describe("03 - Storage shift", function () {
   });
 
   describe("state set in the constructor", function () {
-    it("VaultV1 (03) sets the owner in its constructor: through the proxy owner() is address(0)", async function () {
+    it("VaultV1B sets the owner in its constructor: through the proxy owner() is address(0)", async function () {
       const [, alice] = await ethers.getSigners();
-      const implementation = (await ethers.deployContract(VAULT_V1_CONSTRUCTOR, [alice.address])) as unknown as VaultV1Constructor;
+      const implementation = (await ethers.deployContract(VAULT_V1B, [alice.address])) as unknown as VaultV1B;
       const proxy = await ethers.deployContract("MiniProxy1967", [await implementation.getAddress(), "0x"]);
-      const vault = (await ethers.getContractAt(VAULT_V1_CONSTRUCTOR, await proxy.getAddress())) as unknown as VaultV1Constructor;
+      const vault = (await ethers.getContractAt(VAULT_V1B, await proxy.getAddress())) as unknown as VaultV1B;
 
       expect(await implementation.owner()).to.equal(alice.address);
       // This is BUG 2: the constructor never ran in the proxy's context.
@@ -64,10 +64,10 @@ describe("03 - Storage shift", function () {
 
     async function deployFixture() {
       const [admin, alice] = await ethers.getSigners();
-      const v1 = (await ethers.deployContract(VAULT_V1)) as unknown as VaultV1;
+      const v1 = (await ethers.deployContract(VAULT_V1A)) as unknown as VaultV1A;
       const initData = v1.interface.encodeFunctionData("setOwner", [alice.address]);
       const proxy = await ethers.deployContract("MiniProxy1967", [await v1.getAddress(), initData]);
-      const vault = (await ethers.getContractAt(VAULT_V1, await proxy.getAddress())) as unknown as VaultV1;
+      const vault = (await ethers.getContractAt(VAULT_V1A, await proxy.getAddress())) as unknown as VaultV1A;
       await vault.connect(alice).deposit({ value: DEPOSIT });
       return { admin, alice, proxy, vault };
     }
@@ -92,13 +92,13 @@ describe("03 - Storage shift", function () {
 
   describe("@openzeppelin/hardhat-upgrades validateUpgrade", function () {
     // The plugin compares the storage layouts from the build-info, like scripts/layout.ts.
-    it("flags VaultV1 -> VaultV2Broken", async function () {
+    it("flags VaultV1A -> VaultV2Broken", async function () {
       const upgradesApi = await upgrades(hre, connection);
 
       let error: any;
       try {
         await upgradesApi.validateUpgrade(
-          await ethers.getContractFactory(VAULT_V1),
+          await ethers.getContractFactory(VAULT_V1A),
           await ethers.getContractFactory("VaultV2Broken"),
           { kind: "transparent" },
         );

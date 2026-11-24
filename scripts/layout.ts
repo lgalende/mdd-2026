@@ -11,8 +11,8 @@ import hre from "hardhat";
 type StorageEntry = { label: string; slot: string; offset: number; type: string };
 type StorageLayout = { storage: StorageEntry[]; types: Record<string, { label: string; numberOfBytes: string }> | null };
 
-// Use a fully qualified name ("path/File.sol:Name") when two contracts share a name, like the two VaultV1.
-const DEFAULT = "contracts/upgradeability/02-storage-collision/VaultV1.sol:VaultV1,VaultV2Broken";
+// Use a fully qualified name ("path/File.sol:Name") when two contracts share a name, like VaultV1A in blocks 3 and 4.
+const DEFAULT = "contracts/upgradeability/03-storage-shift/VaultV1A.sol:VaultV1A,VaultV2Broken";
 const names = (process.env.LAYOUT_CONTRACTS ?? DEFAULT).split(",").map((n) => n.trim());
 const labels = names.map((n) => n.split(":").pop()!);
 

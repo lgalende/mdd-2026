@@ -1,8 +1,14 @@
 import { expect } from "chai";
 import { network } from "hardhat";
 import { readUintSlot } from "../../scripts/slots.js";
+import type { VaultV1A } from "../../types/ethers-contracts/contracts/upgradeability/04-initialize/VaultV1A.js";
+import type { VaultV1B } from "../../types/ethers-contracts/contracts/upgradeability/04-initialize/VaultV1B.js";
 
 const { ethers, networkHelpers } = await network.create();
+
+// Block 3 also has a VaultV1A and a VaultV1B, so these are referenced by fully qualified name.
+const VAULT_V1A = "contracts/upgradeability/04-initialize/VaultV1A.sol:VaultV1A";
+const VAULT_V1B = "contracts/upgradeability/04-initialize/VaultV1B.sol:VaultV1B";
 
 // ERC-7201 slot where OZ's Initializable stores `_initialized` (the version) and `_initializing`.
 const INITIALIZABLE_SLOT = "0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00";
@@ -11,11 +17,11 @@ describe("04 - Initialize", function () {
   describe("VaultV1A (initializer)", function () {
     async function deployFixture() {
       const [admin, alice, attacker] = await ethers.getSigners();
-      const implementation = await ethers.deployContract("VaultV1A");
+      const implementation = (await ethers.deployContract(VAULT_V1A)) as unknown as VaultV1A;
       // Init data passed to the proxy constructor: deploy + initialize in one tx, no front-running.
       const initData = implementation.interface.encodeFunctionData("initialize", [alice.address]);
       const proxy = await ethers.deployContract("VaultInitProxy", [await implementation.getAddress(), initData]);
-      const vault = await ethers.getContractAt("VaultV1A", await proxy.getAddress());
+      const vault = (await ethers.getContractAt(VAULT_V1A, await proxy.getAddress())) as unknown as VaultV1A;
       return { admin, alice, attacker, implementation, proxy, vault };
     }
 
@@ -56,10 +62,10 @@ describe("04 - Initialize", function () {
   describe("VaultV1B (_disableInitializers in the constructor)", function () {
     async function deployFixture() {
       const [admin, alice, attacker] = await ethers.getSigners();
-      const implementation = await ethers.deployContract("VaultV1B");
+      const implementation = (await ethers.deployContract(VAULT_V1B)) as unknown as VaultV1B;
       const initData = implementation.interface.encodeFunctionData("initialize", [admin.address]);
       const proxy = await ethers.deployContract("VaultInitProxy", [await implementation.getAddress(), initData]);
-      const vault = await ethers.getContractAt("VaultV1B", await proxy.getAddress());
+      const vault = (await ethers.getContractAt(VAULT_V1B, await proxy.getAddress())) as unknown as VaultV1B;
       return { admin, alice, attacker, implementation, proxy, vault };
     }
 

@@ -10,7 +10,7 @@ describe("07 - Beacon (VaultFactory + UpgradeableBeacon)", function () {
   async function deployFixture() {
     const [deployer, alice, bob, carol] = await ethers.getSigners();
     const users = [alice, bob, carol];
-    const v1 = await ethers.deployContract("VaultV1B");
+    const v1 = await ethers.deployContract("contracts/upgradeability/04-initialize/VaultV1B.sol:VaultV1B");
     const factory = await ethers.deployContract("VaultFactory", [await v1.getAddress()]);
     const beacon = await ethers.getContractAt("UpgradeableBeacon", await factory.beacon());
 

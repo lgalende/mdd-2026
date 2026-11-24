@@ -14,9 +14,9 @@ is still present). Tests that show a bug **pass** by asserting the broken behavi
 | Bug | Where | Fixed in |
 |-----|-------|----------|
 | BUG 1: storage collision (implementation in slot 0) | `MiniProxy` | `MiniProxy1967` |
-| BUG 2: state set in the constructor (`owner`) | `03-storage-shift/VaultV1` | `VaultV1A` (`initialize` + `initializer`) |
+| BUG 2: state set in the constructor (`owner`) | `03-storage-shift/VaultV1B` | `04-initialize/VaultV1A` (`initialize` + `initializer`) |
 | BUG 3: storage layout shift | `VaultV2Broken` | add new variables at the end |
-| BUG 4: uninitialized implementation | `VaultV1A` | `VaultV1B` |
+| BUG 4: uninitialized implementation | `04-initialize/VaultV1A` | `04-initialize/VaultV1B` |
 | BUG 5: non-upgradeable OZ dependency (`Ownable` instead of `OwnableUpgradeable`) | `VaultUUPSV1A` | `VaultUUPSV1B` |
 
 Some issues are left on purpose to keep the code short. They are explained in comments but not
@@ -26,7 +26,7 @@ labeled as bugs, since OpenZeppelin's contracts already solve them:
   check on upgrade, no `Upgraded` event and a non-transferable admin.
 - Only the block 4 vaults have a `withdraw`; in the others deposited ETH is locked forever.
 - `VaultTransparentV2.initializeV2` has no access control: it is meant to run inside `upgradeAndCall`.
-- `setOwner` in `02-storage-collision/VaultV1` has no access control, and `VaultV2Broken.initialize` has no guard.
+- `setOwner` in `02-storage-collision/VaultV1` and `03-storage-shift/VaultV1A` has no access control, and `VaultV2Broken.initialize` has no guard.
 
 ## Setup
 
@@ -58,7 +58,7 @@ npx hardhat test test/upgradeability/06-*.ts --gas-stats
 Scripts:
 
 ```shell
-# Storage layouts side by side (VaultV1 from block 2 and VaultV2Broken by default)
+# Storage layouts side by side (VaultV1A from block 3 and VaultV2Broken by default)
 npx hardhat run scripts/layout.ts
 LAYOUT_CONTRACTS=VaultUUPSV1B,VaultUUPSV1A npx hardhat run scripts/layout.ts
 ```
@@ -72,7 +72,7 @@ and the EIP-1967 slot constants.
 |---|-------|------|-----------|---------------|
 | 1 | `01-delegatecall` | 10 min | `Caller`, `Logic` | `call` changes `Logic`'s `x`; `delegatecall` changes `Caller`'s. The event shows `msg.sender` and `address(this)` in each case. |
 | 2 | `02-storage-collision` | 20 min | `MiniProxy`, `VaultV1` | A ~30-line proxy with `fallback` + `delegatecall`, used as a `VaultV1` via `getContractAt`. State and ETH live in the proxy. `setOwner(alice)` overwrites slot 0 (implementation) and bricks the proxy. |
-| 3 | `03-storage-shift` | 20 min | `MiniProxy1967`, `VaultV1`, `VaultV2Broken` | Fix for the collision with EIP-1967 slots. A `VaultV1` that sets `owner` in its constructor has `owner() == address(0)` through the proxy. Upgrading to a V2 with `fee` in the middle corrupts `totalDeposits`. `scripts/layout.ts` and `validateUpgrade`. |
+| 3 | `03-storage-shift` | 20 min | `MiniProxy1967`, `VaultV1A`, `VaultV1B`, `VaultV2Broken` | Fix for the collision with EIP-1967 slots. `VaultV1B` sets `owner` in its constructor, so it has `owner() == address(0)` through the proxy. Upgrading to a V2 with `fee` in the middle corrupts `totalDeposits`. `scripts/layout.ts` and `validateUpgrade`. |
 | 4 | `04-initialize` | 10 min | `VaultInitProxy`, `VaultV1A`, `VaultV1B`, `VaultV2` | `initialize` replaces the constructor and `initializer` prevents re-initialization. Attack: initializing the implementation. Fix with `_disableInitializers()`. `reinitializer(2)` inside `upgradeToAndCall`. |
 | 5 | `05-transparent` | 10 min | `VaultTransparentProxy`, `VaultTransparentV1`, `VaultTransparentV2` | `ProxyAdmin` read from the admin slot, `upgradeAndCall`, `ProxyDeniedAdminAccess`. |
 | 6 | `06-uups` | 15 min | `VaultUUPSProxy`, `VaultUUPSV1B`, `VaultUUPSV2`, `VaultUUPSV1A` | UUPS: upgrade from the implementation, `onlyOwner` in `_authorizeUpgrade`. Using `@openzeppelin/contracts` instead of `-upgradeable` freezes the proxy. Gas comparison with Transparent. |
@@ -93,5 +93,5 @@ and the EIP-1967 slot constants.
   `solidity.npmFilesToBuild` in `hardhat.config.ts`, because Hardhat 3 only emits artifacts for
   project sources and the npm files listed there.
 - The storage layout is added to the build-info via `outputSelection` in `hardhat.config.ts`.
-- There are two `VaultV1` contracts (`02-storage-collision/` and `03-storage-shift/`). Tests and `LAYOUT_CONTRACTS` refer to them
-  by fully qualified name, e.g. `contracts/upgradeability/02-storage-collision/VaultV1.sol:VaultV1`.
+- Blocks 3 and 4 both have a `VaultV1A` and a `VaultV1B`. Tests and `LAYOUT_CONTRACTS` refer to them
+  by fully qualified name, e.g. `contracts/upgradeability/03-storage-shift/VaultV1A.sol:VaultV1A`.

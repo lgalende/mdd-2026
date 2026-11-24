@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-/// @notice WRONG upgrade of VaultV1. DO NOT USE.
+/// @notice WRONG upgrade of VaultV1A. DO NOT USE.
 contract VaultV2Broken {
     address public owner; // slot 0
     // BUG 3: storage layout shift. `fee` was inserted before `totalDeposits`, so after the upgrade `fee`
